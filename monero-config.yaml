@@ -1,0 +1,63 @@
+---
+- hosts: 127.0.0.1
+  connection: local
+  gather_facts: yes
+  tasks:
+    - name: Install required packages
+      apt:
+        name: "{{ item }}"
+        update_cache: true
+        state: present
+      with_items:
+        - 'libmicrohttpd-dev'
+        - 'libssl-dev'
+        - 'cmake'
+        - 'build-essential'
+        - 'libhwloc-dev'
+
+    - name: Clone xmr-stak repo
+      git:
+        repo: https://github.com/fireice-uk/xmr-stak.git
+        dest: ~/xmr-stak
+
+    - name: Create build directory
+      file:
+        path: ~/xmr-stak/build
+        state: directory
+
+    - name: Run cmake
+      shell: "cd ~/xmr-stak/build && cmake .. -DCUDA_ENABLE=OFF -DOpenCL_ENABLE=OFF"
+
+    - name: Make install
+      shell: "cd ~/xmr-stak/build && make install"
+
+    - name: Set hostname var for templating
+      command: hostname
+      register: hostname
+
+    - name: Template pools.txt file
+      template:
+        src: pools.j2
+        dest: ~/xmr-stak/build/bin/pools.txt
+
+    - name: Copy over c++ header file
+      copy:
+        src: donate-level.hpp
+        dest: ~/xmr-stak/xmrstak/donate-level.hpp
+
+    - name: Copy over config.txt
+      copy:
+        src: cpu.txt
+        dest: ~/xmr-stak/build/bin/cpu.txt
+
+    - name: Copy over cpu.txt
+      copy:
+        src: config.txt
+        dest: ~/xmr-stak/build/bin/config.txt
+
+#    - name: Mine!
+#      command: "./xmr-stak"
+#      async: 45
+#      poll: 0
+#      args:
+#        chdir: ~/xmr-stak/build/bin
